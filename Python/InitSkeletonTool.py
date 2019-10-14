@@ -2,7 +2,9 @@ from pyfbsdk import *
 from pyfbsdk_additions import *
 from libHazardMoBuFunctions import *
 import libHazardMoBuFunctions
+import libHazardCustomRigUtils as hazCustomRig
 reload(libHazardMoBuFunctions)
+reload(hazCustomRig)
 
 boneMap = {'Reference' : 'Root',
            'Hips' : 'Hips',
@@ -244,6 +246,10 @@ def BtnCallback_CreateControlRig(_control, _event):
         myCharacter.ActiveInput = True
 
 
+def BtnCallback_CreateCustomRigSetup(_control, _event):
+    reload(hazCustomRig)
+    hazCustomRig.CreateCustomRigSetup()
+
 def PopulateLayout(mainLyt):
     x = FBAddRegionParam(5, FBAttachType.kFBAttachLeft, "")
     y = FBAddRegionParam(5, FBAttachType.kFBAttachTop, "")
@@ -255,46 +261,45 @@ def PopulateLayout(mainLyt):
 
     b = FBButton()
     b.Caption = "Set IK Constraints"
-    # b.Justify = FBTextJustify.kFBTextJustifyLeft
     main.Add(b, 30)
     b.OnClick.Add(BtnCallback_SetIKConstraints)
 
     b = FBButton()
     b.Caption = "Set T Pose"
-    # b.Justify = FBTextJustify.kFBTextJustifyLeft
     main.Add(b, 30)
     b.OnClick.Add(BtnCallback_SetTPose)
 
     b = FBButton()
     b.Caption = "Clear Unused Properties"
-    # b.Justify = FBTextJustify.kFBTextJustifyLeft
     main.Add(b, 30)
     b.OnClick.Add(BtnCallback_ClearUnusedProperties)
 
     b = FBButton()
     b.Caption = "Create Plot/Export Groups"
-    # b.Justify = FBTextJustify.kFBTextJustifyLeft
     main.Add(b, 30)
     b.OnClick.Add(BtnCallback_CreateGroups)
 
     b = FBButton()
     b.Caption = "Define Skeleton"
-    # b.Justify = FBTextJustify.kFBTextJustifyLeft
     main.Add(b, 30)
     b.OnClick.Add(BtnCallback_DefineSkeleton)
 
     b = FBButton()
     b.Caption = "Create Control Rig"
-    # b.Justify = FBTextJustify.kFBTextJustifyLeft
     main.Add(b, 30)
     b.OnClick.Add(BtnCallback_CreateControlRig)
+
+    b = FBButton()
+    b.Caption = "Create Custom Rig Setup"
+    main.Add(b, 30)
+    b.OnClick.Add(BtnCallback_CreateCustomRigSetup)
 
 
 def CreateTool():
     # Tool creation will serve as the hub for all other controls
     t = FBCreateUniqueTool("Init Skeleton Tool")
     t.StartSizeX = 200
-    t.StartSizeY = 260
+    t.StartSizeY = 290
     PopulateLayout(t)
     ShowTool(t) #@UndefinedVariable
 
