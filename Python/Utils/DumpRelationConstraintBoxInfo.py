@@ -6,6 +6,7 @@ for constraint in FBSystem().Scene.Constraints:
             if box.Selected:
                 boxPos = constraint.GetBoxPosition(box) # Tupple, first is result of operation True/False
                 print 'Constraint: "{}" Box: "{}" Position: ({}, {})'.format(constraint.Name, box.Name, boxPos[1], boxPos[2])
+
                 boxIn = box.AnimationNodeInGet()
                 if boxIn and boxIn.Nodes:
                     print 'In Properties'
