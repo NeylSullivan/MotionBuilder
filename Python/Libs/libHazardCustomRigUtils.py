@@ -1,11 +1,5 @@
 import math
-import pyfbsdk_additions
-#import AnimControlCenter
 from pyfbsdk import *
-
-def HACK_DestroyAnimControlCenterWindowIfExist():
-    ANIM_CONTROL_CENTER_TOOL_NAME = "Anim Control Center"
-    pyfbsdk_additions.FBDestroyToolByName(ANIM_CONTROL_CENTER_TOOL_NAME)
 
 def DeletePropertyIfExist(model, propName):
     lProp = model.PropertyList.Find(propName)
@@ -390,8 +384,6 @@ def MakeSkinnedMeshesUnpickable():
 
 def CreateCustomRigSetup():
     MakeSkinnedMeshesUnpickable()
-
-    HACK_DestroyAnimControlCenterWindowIfExist()
 
     FBApplication().CurrentCharacter.GoToStancePose()
 

@@ -1,46 +1,51 @@
 from pyfbsdk import *
 
-#Init
-Scene = FBSystem().Scene
-System = FBSystem()
-Application = FBApplication()
+def CreateHudElement(pHud, pName, pX, pY, pHeight, pSrcProp, pColor=FBColorAndAlpha(1.0, 0.5, 0.0, 1.0)):
+    hudElement = FBHUDTextElement(pName)
+    hudElement.Content = pName +': %s'
+    hudElement.Color = pColor
+    hudElement.X = pX
+    hudElement.Y = pY
+    hudElement.Height = pHeight
+    hudElement.ScaleByPercent = False
+    hudElement.PositionByPercent = False
+    hudElement.Justification = FBHUDElementHAlignment.kFBHUDLeft
+    hudElement.HorizontalDock = FBHUDElementHAlignment.kFBHUDLeft
+    hudElement.VerticalDock = FBHUDElementVAlignment.kFBHUDTop
+    hudElement.ConnectSrc(pSrcProp) # pylint: disable=no-member
 
-HUD = FBHUD("HazardHUD")
-lHudCamPos = FBHUDTextElement("IK_FPCam Pos")
-Scene.ConnectSrc(HUD)          #Connect the HUD to the scene
-lHudCamPos.Content =  "IK_FPCam Pos %s"
-lHudCamPos.X = 2
-lHudCamPos.Y = -2
-lHudCamPos.Height = 6
-lHudCamPos.Justification = FBHUDElementHAlignment.kFBHUDLeft
-lHudCamPos.HorizontalDock = FBHUDElementHAlignment.kFBHUDLeft
-lHudCamPos.VerticalDock = FBHUDElementVAlignment.kFBHUDTop
-
-lHudCamPos.Font = "Times New Roman"   #Set Font of FBHUDTextElement
-
-HUD.ConnectSrc(lHudCamPos) #Connect HUDTextElement to the HUD
-
-lIK_FPCam = FBFindModelByLabelName("IK_FPCam")
-plIK_FPCamTranslation = lIK_FPCam.PropertyList.Find('Lcl Translation')
-lHudCamPos.ConnectSrc(plIK_FPCamTranslation) # Connect the HUD to the property
-
-lHudCamRot = FBHUDTextElement("IK_FPCam Rot")
-Scene.ConnectSrc(HUD)          #Connect the HUD to the scene
-lHudCamRot.Content =  "IK_FPCam Rot %s"
-lHudCamRot.X = 2
-lHudCamRot.Y = -8
-lHudCamRot.Height = 6
-lHudCamRot.Justification = FBHUDElementHAlignment.kFBHUDLeft
-lHudCamRot.HorizontalDock = FBHUDElementHAlignment.kFBHUDLeft
-lHudCamRot.VerticalDock = FBHUDElementVAlignment.kFBHUDTop
-
-lHudCamRot.Font = "Times New Roman"   #Set Font of FBHUDTextElement
-
-HUD.ConnectSrc(lHudCamRot) #Connect HUDTextElement to the HUD
+    pHud.ConnectSrc(hudElement) #Connect HUDTextElement to the HUD
 
 
-plIK_FPCamRotation = lIK_FPCam.PropertyList.Find('Lcl Rotation')
-lHudCamRot.ConnectSrc(plIK_FPCamRotation) # Connect the HUD to the property
+HUD_NAME = 'Perspective_HUD'
 
+# Remove all huds
+hudsToDelete = []
+elementsToDelete = []
 
-Scene.Cameras[0].ConnectSrc(HUD) #Connect to Perspective camera
+for hud in FBSystem().Scene.HUDs:
+    hudsToDelete.append(hud)
+    for element in hud.Elements:
+        elementsToDelete.append(element)
+
+for element in elementsToDelete:
+    element.FBDelete()
+
+for hud in hudsToDelete:
+    hud.FBDelete()
+
+# Then create new one
+
+hud = FBHUD(HUD_NAME)
+FBSystem().Scene.ConnectSrc(hud) #Connect the HUD to the scene
+FBSystem().Scene.Cameras[0].ConnectSrc(hud) #Connect to Perspective camera
+
+srcRootBone = FBFindModelByLabelName("Root")
+if srcRootBone:
+    CreateHudElement(hud, 'Root Pos', 8, -8, 24, srcRootBone.PropertyList.Find('Lcl Translation'))
+    CreateHudElement(hud, 'Root Rot', 8, -32, 24, srcRootBone.PropertyList.Find('Lcl Rotation'))
+
+srcCameraBone = FBFindModelByLabelName("IK_CAMERA")
+if srcCameraBone:
+    CreateHudElement(hud, 'Cam Pos', 8, -64, 24, srcCameraBone.PropertyList.Find('Lcl Translation'), FBColorAndAlpha(1, 1, 1, 1))
+    CreateHudElement(hud, 'Cam Rot', 8, -88, 24, srcCameraBone.PropertyList.Find('Lcl Rotation'), FBColorAndAlpha(1, 1, 1, 1))
