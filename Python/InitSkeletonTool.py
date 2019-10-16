@@ -259,10 +259,13 @@ def PopulateLayout(mainLyt):
     mainLyt.AddRegion("main", "main", x, y, w, h)
     mainLyt.SetControl("main", main)
 
-    b = FBButton()
-    b.Caption = "Set IK Constraints"
-    main.Add(b, 30)
-    b.OnClick.Add(BtnCallback_SetIKConstraints)
+    # Deprecated
+    # IK bones now handled by single relation constraint
+
+    #b = FBButton()
+    #b.Caption = "Set IK Constraints"
+    #main.Add(b, 30)
+    #b.OnClick.Add(BtnCallback_SetIKConstraints)
 
     b = FBButton()
     b.Caption = "Set T Pose"

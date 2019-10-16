@@ -36,58 +36,58 @@ def SetupPropertyList(model):
         PropertyListChanged(tool.list, None)
 
 
-def EventContainerDblClick(control, event):
+def EventContainerDblClick(_control, _event):
     SetupPropertyList(None)
 
-def EventContainerDragAndDrop(control, event):
+def EventContainerDragAndDrop(_control, event):
     if event.State == FBDragAndDropState.kFBDragAndDropDrag:
         event.Accept()
     elif event.State == FBDragAndDropState.kFBDragAndDropDrop:
-        SetupPropertyList( event.Components[0] )
+        SetupPropertyList(event.Components[0])
 
-def PropertyListChanged(control, event):
+def PropertyListChanged(control, _event):
     tool.prop.Property = tool.prop_list[control.ItemIndex]
     tool.prop_modern.Property = tool.prop_list[control.ItemIndex]
 
-def PrevProperty(control, event):
+def PrevProperty(_control, _event):
     if tool.list.ItemIndex - 1 < 0:
         tool.list.ItemIndex = len(tool.list.Items)-1
     else:
         tool.list.ItemIndex = tool.list.ItemIndex - 1
     PropertyListChanged(tool.list, None)
 
-def NextProperty(control, event):
+def NextProperty(_control, _event):
     if tool.list.ItemIndex + 1 >= len(tool.list.Items):
         tool.list.ItemIndex = 0
     else:
         tool.list.ItemIndex = tool.list.ItemIndex + 1
     PropertyListChanged(tool.list, None)
 
-def SceneChanged(scene, event):
-    if len(tool.container.Items) != 0 and \
+def SceneChanged(_scene, event):
+    if tool.container.Items and \
         event.Type == FBSceneChangeType.kFBSceneChangeDetach  and \
         event.ChildComponent == tool.model:
         SetupPropertyList(None)
 
 
 def PopulateLayout(mainLyt):
-    x = FBAddRegionParam(0,FBAttachType.kFBAttachLeft,"")
-    y = FBAddRegionParam(0,FBAttachType.kFBAttachTop,"")
-    w = FBAddRegionParam(0,FBAttachType.kFBAttachRight,"")
-    h = FBAddRegionParam(25,FBAttachType.kFBAttachBottom,"")
-    mainLyt.AddRegion("main","main", x, y, w, h)
+    x = FBAddRegionParam(0, FBAttachType.kFBAttachLeft, "")
+    y = FBAddRegionParam(0, FBAttachType.kFBAttachTop, "")
+    w = FBAddRegionParam(0, FBAttachType.kFBAttachRight, "")
+    h = FBAddRegionParam(25, FBAttachType.kFBAttachBottom, "")
+    mainLyt.AddRegion("main", "main", x, y, w, h)
     vlyt = FBVBoxLayout()
-    mainLyt.SetControl("main",vlyt)
+    mainLyt.SetControl("main", vlyt)
 
     l = FBLabel()
     l.Caption = "Drag and drop a model into the container. Double click to clear."
-    vlyt.Add(l,30)
+    vlyt.Add(l, 30)
 
     tool.model = None
     tool.container = FBVisualContainer()
     tool.container.OnDragAndDrop.Add(EventContainerDragAndDrop)
     tool.container.OnDblClick.Add(EventContainerDblClick)
-    vlyt.Add(tool.container,30)
+    vlyt.Add(tool.container, 30)
 
     hlyt = FBHBoxLayout()
     tool.list = FBList()
@@ -116,10 +116,10 @@ def PopulateLayout(mainLyt):
     FBSystem().Scene.OnChange.Add(SceneChanged)
 
     # register when this tool is destroyed.
-    tool.OnUnbind.Add(OnToolDestroy)
+    tool.OnUnbind.Add(OnToolDestroy)  # pylint: disable=no-member
 
 
-def OnToolDestroy(control,event):
+def OnToolDestroy(_control, _event):
     # Important: each time we run this script we need to remove
     # the SceneChanged from the Scene else they will accumulate
     FBSystem().Scene.OnChange.Remove(SceneChanged)

@@ -17,7 +17,7 @@ lHudCamPos.HorizontalDock = FBHUDElementHAlignment.kFBHUDLeft
 lHudCamPos.VerticalDock = FBHUDElementVAlignment.kFBHUDTop
 
 lHudCamPos.Font = "Times New Roman"   #Set Font of FBHUDTextElement
-    
+
 HUD.ConnectSrc(lHudCamPos) #Connect HUDTextElement to the HUD
 
 lIK_FPCam = FBFindModelByLabelName("IK_FPCam")
@@ -35,7 +35,7 @@ lHudCamRot.HorizontalDock = FBHUDElementHAlignment.kFBHUDLeft
 lHudCamRot.VerticalDock = FBHUDElementVAlignment.kFBHUDTop
 
 lHudCamRot.Font = "Times New Roman"   #Set Font of FBHUDTextElement
-    
+
 HUD.ConnectSrc(lHudCamRot) #Connect HUDTextElement to the HUD
 
 

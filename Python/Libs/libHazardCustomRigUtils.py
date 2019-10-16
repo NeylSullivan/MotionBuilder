@@ -1,5 +1,11 @@
 import math
+import pyfbsdk_additions
+#import AnimControlCenter
 from pyfbsdk import *
+
+def HACK_DestroyAnimControlCenterWindowIfExist():
+    ANIM_CONTROL_CENTER_TOOL_NAME = "Anim Control Center"
+    pyfbsdk_additions.FBDestroyToolByName(ANIM_CONTROL_CENTER_TOOL_NAME)
 
 def DeletePropertyIfExist(model, propName):
     lProp = model.PropertyList.Find(propName)
@@ -376,7 +382,19 @@ def CreateIKBonesRelaionConstraint():
     constraint.Active = True
     return constraint
 
+def MakeSkinnedMeshesUnpickable():
+    for topLevelModel in FBSystem().Scene.RootModel.Children:
+        if topLevelModel.IsDeformable:
+            topLevelModel.Pickable = False
+
+
 def CreateCustomRigSetup():
+    MakeSkinnedMeshesUnpickable()
+
+    HACK_DestroyAnimControlCenterWindowIfExist()
+
+    FBApplication().CurrentCharacter.GoToStancePose()
+
     rigCtrlModel = FBApplication().CurrentCharacter.GetCtrlRigModel(FBBodyNodeId.kFBReferenceNodeId)
     hipsCtrlModel = FBApplication().CurrentCharacter.GetCtrlRigModel(FBBodyNodeId.kFBHipsNodeId)
 

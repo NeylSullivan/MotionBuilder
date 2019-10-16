@@ -2,7 +2,7 @@ import os
 from pyfbsdk import *
 from pyfbsdk_additions import *
 import decimal
-from contextlib import contextmanager
+from libHazardUIExtension import *
 from libHazardMoBuFunctions import *
 import libHazardMoBuFunctions
 reload(libHazardMoBuFunctions)
@@ -13,30 +13,7 @@ radbtnKeepSpeed = FBButton()
 
 enbRescaleTime = FBEditNumber()
 
-@contextmanager
-def BorderedVertBoxLayout(mainLyt, height=75):
-    try:
-        borderBox = FBHBoxLayout()
-        borderRegionName = 'Inset'
-        x = FBAddRegionParam(5, FBAttachType.kFBAttachLeft, "")
-        y = FBAddRegionParam(5, FBAttachType.kFBAttachTop, "")
-        w = FBAddRegionParam(-5, FBAttachType.kFBAttachRight, "")
-        h = FBAddRegionParam(-5, FBAttachType.kFBAttachBottom, "")
-        borderBox.AddRegion(borderRegionName, 'Loop', x, y, w, h)
-        borderBox.SetBorder(borderRegionName, FBBorderStyle.kFBEmbossBorder, False, True, 2, 3, 90, 0)
-        vertBox = FBVBoxLayout()
-        yield vertBox
-    finally:
-        borderBox.SetControl(borderRegionName, vertBox)
-        mainLyt.GetControl('main').Add(borderBox, height)
 
-@contextmanager
-def HorBoxLayout(parentLayout, height=25):
-    try:
-        box = FBHBoxLayout()
-        yield box
-    finally:
-        parentLayout.Add(box, height)
 
 # Simple buttom to offset looped take to the opposide side of the loop
 def BtnCallback_GotoLoop(_control, _event):
