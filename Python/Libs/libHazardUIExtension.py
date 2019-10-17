@@ -3,10 +3,10 @@ from pyfbsdk_additions import *
 from contextlib import contextmanager
 
 @contextmanager
-def BorderedVertBoxLayout(mainLyt, height=75):
+def BorderedVertBoxLayout(pMainLayout, pHeight=75, pRegionName='Inset'):
     try:
         borderBox = FBHBoxLayout()
-        borderRegionName = 'Inset'
+        borderRegionName = pRegionName
         x = FBAddRegionParam(5, FBAttachType.kFBAttachLeft, "")
         y = FBAddRegionParam(5, FBAttachType.kFBAttachTop, "")
         w = FBAddRegionParam(-5, FBAttachType.kFBAttachRight, "")
@@ -17,12 +17,32 @@ def BorderedVertBoxLayout(mainLyt, height=75):
         yield vertBox
     finally:
         borderBox.SetControl(borderRegionName, vertBox)
-        mainLyt.GetControl('main').Add(borderBox, height)
+        pMainLayout.GetControl('main').Add(borderBox, pHeight)
 
 @contextmanager
-def HorBoxLayout(parentLayout, height=25):
+def HorBoxLayout(pParentLayout, pHeight=25):
     try:
         box = FBHBoxLayout()
         yield box
     finally:
-        parentLayout.Add(box, height)
+        pParentLayout.Add(box, pHeight)
+
+def LayoutButton(pParentLayout, pSize, pCaption, pCallback, **kwarg):
+    b = FBButton()
+    b.Caption = pCaption
+    b.OnClick.Add(pCallback)
+
+    Look = kwarg.get('Look')
+    if Look:
+        b.Look = Look
+
+    State0Color = kwarg.get('State0Color')
+    if State0Color:
+        b.SetStateColor(FBButtonState.kFBButtonState0, State0Color)
+
+    State1Color = kwarg.get('State1Color')
+    if State1Color:
+        b.SetStateColor(FBButtonState.kFBButtonState1, State1Color)
+
+    pParentLayout.Add(b, pSize)
+    return b

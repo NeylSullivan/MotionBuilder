@@ -1,5 +1,6 @@
 from pyfbsdk import *
 
+
 #   for reference only
 
 #   MotoinBuilder 2017
@@ -20,6 +21,38 @@ from pyfbsdk import *
 #   Chain IK Constraint 13
 #   Spline IK Constraint 14
 
+##
+## Safe delete objects
+##
+## http://blog.evancox.net/2017/01/15/deleting-objects-safely/
+##
+
+def SafeDeleteObjects(objects):
+    # Convert the object to a list if the object isn't a list or tuple
+    if not isinstance(objects, (set, tuple, list)):
+        objects = [objects]
+
+    # Iterate through the list and disconnect/delete
+    for obj in objects:
+        assert isinstance(obj, FBPlug)
+
+        obj.BeginChange()
+        dst_objects = []
+		# Disconnect all Dst objects except for the Scene component.
+        for i in range(0, obj.GetDstCount() - 1):
+            dst_objects.append(obj.GetDst(i))
+        for dst_object in dst_objects:
+            if not isinstance(dst_object, FBScene):
+                obj.DisconnectDst(dst_object)
+
+        obj.DisconnectAllSrc()
+        obj.EndChange()
+        obj.FBDelete()
+
+    FBSystem().Scene.Evaluate()
+
+    return True
+
 
 ##
 ## Scene Refresh Bug Work Around
@@ -31,6 +64,22 @@ def SceneRefresh():
     FBSystem().Scene.Evaluate()
     FBPlayerControl().GotoPreviousKey()
     FBSystem().Scene.Evaluate()
+
+def ClearUserPropertiesRecursive(pModel):
+    propList = pModel.PropertyList
+
+    propToDeleteList = []
+
+    for prop in propList:
+        if prop.IsUserProperty():
+            propToDeleteList.append(prop)
+
+    for prop in propToDeleteList:
+        pModel.PropertyRemove(prop)
+
+    for childModel in pModel.Children:
+        ClearUserPropertiesRecursive(childModel)
+
 
 def GetConstraintPrefix(CONSTRAINT_TYPE):
     lConsPrefix = "ParentChildCons_"
@@ -254,17 +303,16 @@ def PlotStoryClip():
 
     ##Plot Options
     lPlotClipOptions = FBPlotOptions()
-    lPlotClipOptions.ConstantKeyReducerKeepOneKey = False
+    lPlotClipOptions.UseConstantKeyReducer = True
+    lPlotClipOptions.ConstantKeyReducerKeepOneKey = True
     lPlotClipOptions.PlotAllTakes = False
     lPlotClipOptions.PlotOnFrame = True
-    lPlotClipOptions.PlotPeriod = FBTime(0, 0, 0, 1)
+    lPlotClipOptions.PlotPeriod = FBTime(0, 0, 0, 1) #???
     lPlotClipOptions.PlotTranslationOnRootOnly = False
     lPlotClipOptions.PreciseTimeDiscontinuities = False
     lPlotClipOptions.RotationFilterToApply = FBRotationFilter.kFBRotationFilterUnroll
-    lPlotClipOptions.UseConstantKeyReducer = False
     ##Plot Story Clip On Current Character
-    lChar = FBApplication().CurrentCharacter
-    lChar.PlotAnimation(FBCharacterPlotWhere.kFBCharacterPlotOnControlRig, lPlotClipOptions)
+    FBApplication().CurrentCharacter.PlotAnimation(FBCharacterPlotWhere.kFBCharacterPlotOnControlRig, lPlotClipOptions)
 
     SceneRefresh()
     FBPlayerControl().Goto(FBTime(0, 0, 0, oldCurrentFrame, 0))

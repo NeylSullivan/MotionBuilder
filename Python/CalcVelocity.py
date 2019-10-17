@@ -1,9 +1,9 @@
 from pyfbsdk import *
-from math import *
+import math
 
 def GetPointsDistance(start, end):
     root = (end[0] - start[0])*(end[0] - start[0]) + (end[1] - start[1])*(end[1] - start[1]) + (end[2] - start[2])*(end[2] - start[2])
-    return sqrt(root)
+    return math.sqrt(root)
 
 def SceneRefresh():
     FBPlayerControl().GotoNextKey()
@@ -32,27 +32,35 @@ def ProcessData(model):
     FBSystem().Scene.Evaluate()
 
 
-    print startPos
-    print endPos
+    #print startPos
+    #print endPos
 
     distance = GetPointsDistance(startPos, endPos)
-    print distance # distance
+    #print distance # distance
     time = GetTimeSpan()
-    print time # time
+    #print time # time
     velocity = distance / time
-    print velocity
+    #print velocity
 
-    lMessage = "Selected model: " + model.Name
-    lMessage += "\n"
-    lMessage += "\n" + "Start Frame: " + str(FBSystem().CurrentTake.LocalTimeSpan.GetStart().GetFrame())
-    lMessage += ", Pos: (" + str(startPos[0]) + " ," + str(startPos[1]) + " ," + str(startPos[2]) + ")"
-    lMessage += "\n" + "End Frame: " + str(FBSystem().CurrentTake.LocalTimeSpan.GetStop().GetFrame())
-    lMessage += ", Pos: (" + str(endPos[0]) + " ," + str(endPos[1]) + " ," + str(endPos[2]) + ")"
-    lMessage += "\n"
-    lMessage += "\n" + "Time: " + str(time)
-    lMessage += "\n" + "Distance: " + str(distance)
-    lMessage += "\n"
-    lMessage += "\n" + "Velocity: " + str(velocity)
+    lStartFrame = FBSystem().CurrentTake.LocalTimeSpan.GetStart().GetFrame()
+    lEndFrame = FBSystem().CurrentTake.LocalTimeSpan.GetStop().GetFrame()
+
+    lMessage = "Selected model: {}\n\n".format(model.Name)
+    lMessage += "Start Frame: {}, Pos: ({:.1f}, {:.1f}, {:.1f})\n".format(lStartFrame, startPos[0], startPos[1], startPos[2])
+    lMessage += "End Frame: {}, Pos: ({:.1f}, {:.1f}, {:.1f})\n\n\n".format(lEndFrame, endPos[0], endPos[1], endPos[2])
+    lMessage += "Time: {:.2f}\n".format(time)
+    lMessage += "Distance: {:.1f}\n".format(distance)
+    lMessage += "Velocity: {:.1f}\n\n\n".format(velocity)
+    lMessage += "*** GUESSED TIME WARPING VALUES ***\n\n"
+
+
+    for i in range(1, 9):
+        guessedSpeed = 100.0 * i
+        scaleFactor = velocity / guessedSpeed
+        guessedTime = time * scaleFactor
+        guessedFrames = int((lEndFrame-lStartFrame) * scaleFactor)
+
+        lMessage += 'Speed: {}, Time: {:.2f} Frames: {:03d}\n '.format(guessedSpeed, guessedTime, guessedFrames)
 
     FBMessageBox(model.Name, lMessage, "OK", None, None)
     del lMessage

@@ -231,7 +231,7 @@ def PopulateLayout(mainLyt):
     mainLyt.AddRegion("main", "main", x, y, w, h)
     mainLyt.SetControl("main", main)
 
-    with BorderedVertBoxLayout(mainLyt, height=80) as vertBox:
+    with BorderedVertBoxLayout(mainLyt, pHeight=80) as vertBox:
         b = FBButton()
         b.Caption = ">> GoTo Loop >>"
         b.OnClick.Add(BtnCallback_GotoLoop)
@@ -243,13 +243,13 @@ def PopulateLayout(mainLyt):
         vertBox.Add(b, 20)
 
     # Start loop ui region
-    with BorderedVertBoxLayout(mainLyt, height=100) as vertBox:
+    with BorderedVertBoxLayout(mainLyt, pHeight=100) as vertBox:
         b = FBButton()
         b.Caption = "Make Loopable"
         b.OnClick.Add(BtnCallback_MakeLoopable)
         vertBox.AddRelative(b)
 
-        with HorBoxLayout(vertBox, height=20) as horBox:
+        with HorBoxLayout(vertBox, pHeight=20) as horBox:
             lbl = FBLabel()
             lbl.Visible = True
             lbl.ReadOnly = False
@@ -295,7 +295,7 @@ def PopulateLayout(mainLyt):
         b.OnClick.Add(BtnCallback_RetimeAnim)
         vertBox.AddRelative(b)
 
-        with HorBoxLayout(vertBox, height=20) as horBox:
+        with HorBoxLayout(vertBox, pHeight=20) as horBox:
             lbl = FBLabel()
             lbl.Visible = True
             lbl.ReadOnly = False
