@@ -120,7 +120,11 @@ def BtnCallback_DestroyExistingRig(_control, _event):
     del myList[:]
 
     for node in FBSystem().Scene.Constraints:
-        myList.append(node)
+        if node.Name.startswith('MACRO_'):
+            myList.append(node)
+        else:# HACK If not MACRO constraint
+            myList.insert(0, node) # Insert at the beginnig to be deleted first
+
     SafeDeleteObjects(myList)
     del myList[:]
 

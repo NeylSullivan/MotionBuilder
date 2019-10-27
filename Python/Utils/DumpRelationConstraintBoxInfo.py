@@ -11,10 +11,16 @@ for constraint in FBSystem().Scene.Constraints:
                 if boxIn and boxIn.Nodes:
                     print 'In Properties'
                     for lNode in boxIn.Nodes:
-                        print '\t' + lNode.Name
+                        dataSize = lNode.GetSizeOfData()
+                        arrayCount = lNode.GetDataDoubleArrayCount()
+                        #print '\t' + lNode.Name
+                        print '\t{} label: {} size: {} arrayCount: {}'.format(lNode.Name, lNode.Label, dataSize, arrayCount)
+
 
                 boxOut = box.AnimationNodeOutGet()
                 if boxOut and boxOut.Nodes:
                     print 'Out Properties'
                     for lNode in boxOut.Nodes:
-                        print '\t' + lNode.Name
+                        dataSize = lNode.GetSizeOfData()
+                        arrayCount = lNode.GetDataDoubleArrayCount()
+                        print '\t{} label: {} size: {} arrayCount: {}'.format(lNode.Name, lNode.Label, dataSize, arrayCount)

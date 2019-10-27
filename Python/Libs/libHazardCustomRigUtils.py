@@ -165,16 +165,19 @@ def CreateControlMarker(name, size, color=FBColor(1.0, 0.5, 0.0), markerLook=FBM
 
     return marker
 
-def CreateRelaionConstraint(name):
+def DeleteConstraintByName(pName):
     constraintsToDeleteList = []
     for constraint in FBSystem().Scene.Constraints:
-        if constraint.Name.startswith(name):
+        if constraint.Name.startswith(pName):
             constraintsToDeleteList.append(constraint)
 
     for constraint in constraintsToDeleteList:
         constraint.FBDelete()
 
-    newConstraint = FBConstraintRelation(name)
+
+def CreateRelaionConstraint(pName):
+    DeleteConstraintByName(pName)
+    newConstraint = FBConstraintRelation(pName)
     return newConstraint
 
 def FindAnimationNode(pParent, pName):
@@ -183,6 +186,12 @@ def FindAnimationNode(pParent, pName):
         if lNode.Name == pName:
             lResult = lNode
             break
+    #If not found, try by Label (important for MACRO relation constraints)
+    if lResult is None:
+        for lNode in pParent.Nodes:
+            if lNode.Label == pName:
+                lResult = lNode
+                break
     return lResult
 
 def ConnectNodes(srcBox, srcProperty, dstBox, dstProperty):
@@ -196,9 +205,13 @@ def SetInputValue(dstBox, dstProperty, pData):
     if dstNode:
         print 'set "{}" -> "{}" -> "{}"'.format(dstBox.Name, dstNode.Name, pData)
         if isinstance(pData, FBVector3d):
-            dstNode.WriteData([pData[0], pData[1], pData[2],])
+            dstNode.WriteData([pData[0], pData[1], pData[2]])
+        if isinstance(pData, FBTime):
+            print 'ERROR!!! Direct setting time is not suported. Use "Seconds to Time" converter instead'
         else:
             dstNode.WriteData([pData])
+    else:
+        print 'NO DST NODE FOUND "{}" -> "{}" -> "{}"'.format(dstBox.Name, dstNode.Name, pData)
 
 def FindSrcBoxByName(relationConstraint, pName):
     for box in relationConstraint.Boxes:
@@ -218,137 +231,182 @@ def CreateDstBox(relationConstraint, model, useGlobalTransforms, posX, posY):
     relationConstraint.SetBoxPosition(dstBox, posX, posY)
     return dstBox
 
-def CreateFuncBox(relationConstraint, pGroup, pName, posX, posY, newBoxNameSuffix=None):
+def CreateFuncBox(relationConstraint, pGroup, pName, posX, posY, newBoxName=None):
     funcBox = relationConstraint.CreateFunctionBox(pGroup, pName)
     relationConstraint.SetBoxPosition(funcBox, posX, posY)
-    if newBoxNameSuffix:
-        funcBox.Name = '{}'.format(newBoxNameSuffix)
+    if newBoxName:
+        funcBox.Name = newBoxName
     return funcBox
 
 def CreateRootRelaionConstraint(rigCtrlModel, oRootCtrlMarker, hipsCtrlModel, oRootCtrlArrow, oRootArrow):# Relation constraint for root motion
     RC_Root = CreateRelaionConstraint('RC_Root')
 
-    srcBoxRigCtrl = CreateSrcBox(RC_Root, rigCtrlModel, True, 0, 300)
+    srcBoxRigCtrl = CreateSrcBox(RC_Root, rigCtrlModel, True, 0, 200)
     srcBoxCtrlMarker = CreateSrcBox(RC_Root, oRootCtrlMarker, True, 1100, 400)
-    srcBoxRigHips = CreateSrcBox(RC_Root, hipsCtrlModel, True, 0, 900)
+    srcBoxRigHips = CreateSrcBox(RC_Root, hipsCtrlModel, True, 0-1200, 900-300)
 
     # Process reference pos
-    funcBoxSplitReferencePos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 600, 600, 'Split reference pos')
+    funcBoxSplitReferencePos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 350, 50, 'Split reference pos')
     ConnectNodes(srcBoxRigCtrl, 'Translation', funcBoxSplitReferencePos, 'V')
 
-    funcBoxCombineReferenceGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 900, 600, 'Combine reference grounded pos')
+    funcBoxCombineReferenceGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 650, 50, 'Reference XZ pos')
     ConnectNodes(funcBoxSplitReferencePos, 'X', funcBoxCombineReferenceGroundedPos, 'X')
     SetInputValue(funcBoxCombineReferenceGroundedPos, 'Y', 0.0)
     ConnectNodes(funcBoxSplitReferencePos, 'Z', funcBoxCombineReferenceGroundedPos, 'Z')
 
     # Process hips pos
 
-    funcBoxSplitHipsPos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 300, 900, 'Split hips pos')
+    funcBoxSplitHipsPos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 300-1200, 900-300, 'Split hips pos')
     ConnectNodes(srcBoxRigHips, 'Translation', funcBoxSplitHipsPos, 'V')
 
-    funcBoxRootUseSide = CreateFuncBox(RC_Root, 'Number', 'IF Cond Then A Else B', 600, 850, 'If root use side (X)')
-    SetInputValue(funcBoxRootUseSide, 'b', 0.0)
-    ConnectNodes(funcBoxSplitHipsPos, 'X', funcBoxRootUseSide, 'a')
-    ConnectNodes(srcBoxRigCtrl, 'Root use side', funcBoxRootUseSide, 'Cond')
-
-    funcBoxRootUseForward = CreateFuncBox(RC_Root, 'Number', 'IF Cond Then A Else B', 600, 944, 'If root use forward (Z)')
-    SetInputValue(funcBoxRootUseForward, 'b', 0.0)
-    ConnectNodes(funcBoxSplitHipsPos, 'Z', funcBoxRootUseForward, 'a')
-    ConnectNodes(srcBoxRigCtrl, 'Root use forward', funcBoxRootUseForward, 'Cond')
-
-    funcBoxCombineHipsGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 950, 900, 'Combine hips grounded pos')
-    ConnectNodes(funcBoxRootUseSide, 'Result', funcBoxCombineHipsGroundedPos, 'X')
+    funcBoxCombineHipsGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 600-1200, 900-300, 'Hips XZ Pos') ####
+    ConnectNodes(funcBoxSplitHipsPos, 'X', funcBoxCombineHipsGroundedPos, 'X')
     SetInputValue(funcBoxCombineHipsGroundedPos, 'Y', 0.0)
-    ConnectNodes(funcBoxRootUseForward, 'Result', funcBoxCombineHipsGroundedPos, 'Z')
+    ConnectNodes(funcBoxSplitHipsPos, 'Z', funcBoxCombineHipsGroundedPos, 'Z')
 
-    # Check modes (switch like)
-    funcBoxIsZeroMode = CreateFuncBox(RC_Root, 'Number', 'Is Identical (a == b)', 600, 0, 'Is Zero Mode')
-    ConnectNodes(srcBoxRigCtrl, 'Root Mode', funcBoxIsZeroMode, 'a')
-    SetInputValue(funcBoxIsZeroMode, 'b', 0)
+    #Add root ofset calculation from zero frame
 
-    funcBoxIsHipsGroundedMode = CreateFuncBox(RC_Root, 'Number', 'Is Identical (a == b)', 600, 100, 'Is Hips XZ Mode')
-    ConnectNodes(srcBoxRigCtrl, 'Root Mode', funcBoxIsHipsGroundedMode, 'a')
-    SetInputValue(funcBoxIsHipsGroundedMode, 'b', 1)
+    funcBoxLocalTime = CreateFuncBox(RC_Root, 'System', 'Local Time', 400-1200, 730-300)
 
-    funcBoxIsReferenceGroundedMode = CreateFuncBox(RC_Root, 'Number', 'Is Identical (a == b)', 600, 200, 'Is Reference XZ Mode')
-    ConnectNodes(srcBoxRigCtrl, 'Root Mode', funcBoxIsReferenceGroundedMode, 'a')
-    SetInputValue(funcBoxIsReferenceGroundedMode, 'b', 2)
+    funcBoxSecondsToTime = CreateFuncBox(RC_Root, 'Converters', 'Seconds to Time', 636-350-1200, 782-300)
+    SetInputValue(funcBoxSecondsToTime, 'Seconds', 0.0)
 
-    funcBoxIsReferenceFreeMode = CreateFuncBox(RC_Root, 'Number', 'Is Identical (a == b)', 600, 300, 'Is Reference XYZ Mode')
-    ConnectNodes(srcBoxRigCtrl, 'Root Mode', funcBoxIsReferenceFreeMode, 'a')
-    SetInputValue(funcBoxIsReferenceFreeMode, 'b', 3)
+    funcBoxIsZeroFrame = CreateFuncBox(RC_Root, 'Time', 'Is Identical (T1 == T2)', 930-350-1200, 760-300, 'Is zero frame')
+    ConnectNodes(funcBoxLocalTime, 'Result', funcBoxIsZeroFrame, 'T1')
+    ConnectNodes(funcBoxSecondsToTime, 'Result', funcBoxIsZeroFrame, 'T2')
 
-    funcBoxIsFreeMode = CreateFuncBox(RC_Root, 'Number', 'Is Identical (a == b)', 600, 400, 'Is Marker XYZ Mode')
-    ConnectNodes(srcBoxRigCtrl, 'Root Mode', funcBoxIsFreeMode, 'a')
-    SetInputValue(funcBoxIsFreeMode, 'b', 4)
+    funcBoxMemoryHipsOffset = CreateFuncBox(RC_Root, 'Vector', 'Memory (V1 when REC)', 1250-350-1200, 1000-300, 'Memory hips offset')
+    ConnectNodes(funcBoxIsZeroFrame, 'Result', funcBoxMemoryHipsOffset, 'REC')
+    ConnectNodes(funcBoxCombineHipsGroundedPos, 'Result', funcBoxMemoryHipsOffset, 'V1')
+
+    funcBoxSubtractHipsOffset = CreateFuncBox(RC_Root, 'Vector', 'Subtract (V1 - V2)', 1500-350-1200, 900-300)
+    ConnectNodes(funcBoxCombineHipsGroundedPos, 'Result', funcBoxSubtractHipsOffset, 'V1')
+    ConnectNodes(funcBoxMemoryHipsOffset, 'Result', funcBoxSubtractHipsOffset, 'V2')
 
 
-    # Actual IF nodes
-    funcBox_IF_ZeroMode = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1500, 0, 'If zero')
-    ConnectNodes(funcBoxIsZeroMode, 'Result', funcBox_IF_ZeroMode, 'Cond')
-    SetInputValue(funcBox_IF_ZeroMode, 'a', FBVector3d(0, 0, 0))
+    fb_SplitHipsXZPos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 1450-1200, 900-300, 'Split hips XZ pos')
+    ConnectNodes(funcBoxSubtractHipsOffset, 'Result', fb_SplitHipsXZPos, 'V')
 
-    funcBox_IF_HipsGroundedMode = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1500, 100, 'If Hips XZ')
-    ConnectNodes(funcBoxCombineHipsGroundedPos, 'Result', funcBox_IF_HipsGroundedMode, 'a') #a input from funcBoxCombineHipsGroundedPos
-    ConnectNodes(funcBoxIsHipsGroundedMode, 'Result', funcBox_IF_HipsGroundedMode, 'Cond')
-    ConnectNodes(funcBox_IF_HipsGroundedMode, 'Result', funcBox_IF_ZeroMode, 'b') #connect this to previous
+    fb_CombineHipXPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 750, 350, 'Hips X Pos') ####
+    ConnectNodes(fb_SplitHipsXZPos, 'X', fb_CombineHipXPos, 'X')
+    SetInputValue(fb_CombineHipXPos, 'Y', 0.0)
+    SetInputValue(fb_CombineHipXPos, 'Z', 0.0)
 
-    funcBox_IF_ReferenceGroundedMode = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1500, 200, 'If reference XZ')
-    ConnectNodes(funcBoxCombineReferenceGroundedPos, 'Result', funcBox_IF_ReferenceGroundedMode, 'a') #a input from funcBoxCombineReferenceGroundedPos
-    ConnectNodes(funcBoxIsReferenceGroundedMode, 'Result', funcBox_IF_ReferenceGroundedMode, 'Cond')
-    ConnectNodes(funcBox_IF_ReferenceGroundedMode, 'Result', funcBox_IF_HipsGroundedMode, 'b') #connect this to previous
+    fb_CombineHipZPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 750, 250, 'Hips Z Pos') ####
+    SetInputValue(fb_CombineHipZPos, 'X', 0.0)
+    SetInputValue(fb_CombineHipZPos, 'Y', 0.0)
+    ConnectNodes(fb_SplitHipsXZPos, 'Z', fb_CombineHipZPos, 'Z')
 
-    funcBox_IF_ReferenceFreeMode = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1500, 300, 'If reference XYZ')
-    ConnectNodes(srcBoxRigCtrl, 'Translation', funcBox_IF_ReferenceFreeMode, 'a') #a input from srcBoxRigCtrl
-    ConnectNodes(funcBoxIsReferenceFreeMode, 'Result', funcBox_IF_ReferenceFreeMode, 'Cond')
-    ConnectNodes(funcBox_IF_ReferenceFreeMode, 'Result', funcBox_IF_ReferenceGroundedMode, 'b') #connect this to previous
 
-    # No need for final func box for free mode, just connect marker position to 'b' pin of previous node
-    ConnectNodes(srcBoxCtrlMarker, 'Translation', funcBox_IF_ReferenceFreeMode, 'b') #a input from srcBoxCtrlMarker
 
-    # marker should be visible only in "Free" mode
-    dstBoxCtrlMarker = CreateDstBox(RC_Root, oRootCtrlMarker, True, 900, 400)
-    ConnectNodes(funcBoxIsFreeMode, 'Result', dstBoxCtrlMarker, 'Visibility')
+    #######
+    #######
+    #######
+    fb_switch_trs = CreateFuncBox(RC_Root, 'My Macros', 'MACRO_RC_SWITCH', 1500, 200, 'Switch Trs')
+    ConnectNodes(srcBoxRigCtrl, 'Root Mode', fb_switch_trs, 'Index')
 
-    #
-    # Root rotation
-    #
-    # We set it only if 'Root Mode' > 1 ('Reference Grounded', 'Reference Free', 'Free')
-    # 'Zero' and 'Hips Grounded' should stay on zero rotation
-    #
-    funcBoxIsRootRotatingMode = CreateFuncBox(RC_Root, 'Number', 'Is Greater (a > b)', 600, 500, 'Is Root Rotating Mode (a>1)')
-    ConnectNodes(srcBoxRigCtrl, 'Root Mode', funcBoxIsRootRotatingMode, 'a')
-    SetInputValue(funcBoxIsRootRotatingMode, 'b', 1)
+    SetInputValue(fb_switch_trs, 'Input 0', FBVector3d(0, 0, 0)) # Zero mode
+    ConnectNodes(fb_CombineHipZPos, 'Result', fb_switch_trs, 'Input 1') # Hips Z mode
+    ConnectNodes(fb_CombineHipXPos, 'Result', fb_switch_trs, 'Input 2') # Hips X mode
+    ConnectNodes(funcBoxSubtractHipsOffset, 'Result', fb_switch_trs, 'Input 3') # Hips XZ mode
+    ConnectNodes(funcBoxCombineReferenceGroundedPos, 'Result', fb_switch_trs, 'Input 4') # Reference XZ mode
+    ConnectNodes(srcBoxRigCtrl, 'Translation', fb_switch_trs, 'Input 5') # Reference XYZ
+    ConnectNodes(srcBoxCtrlMarker, 'Translation', fb_switch_trs, 'Input 6') # Marker XYZ
 
-    funcBox_IF_RotFromMarker = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1500, 550, 'If rotation from marker') #else from reference
-    ConnectNodes(funcBoxIsFreeMode, 'Result', funcBox_IF_RotFromMarker, 'Cond')
-    ConnectNodes(srcBoxCtrlMarker, 'Rotation', funcBox_IF_RotFromMarker, 'a')
-    ConnectNodes(srcBoxRigCtrl, 'Rotation', funcBox_IF_RotFromMarker, 'b')
-
-    funcBox_IF_UseCustomRotation = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1800, 400, 'If use custom rotation')
-    ConnectNodes(funcBoxIsRootRotatingMode, 'Result', funcBox_IF_UseCustomRotation, 'Cond')
-    ConnectNodes(funcBox_IF_RotFromMarker, 'Result', funcBox_IF_UseCustomRotation, 'a')
-    SetInputValue(funcBox_IF_UseCustomRotation, 'b', FBVector3d(0, 0, 0))
-
+    fb_switch_rot = CreateFuncBox(RC_Root, 'My Macros', 'MACRO_RC_SWITCH', 1500, 500, 'Switch Rot')
+    ConnectNodes(srcBoxRigCtrl, 'Root Mode', fb_switch_rot, 'Index')
+    SetInputValue(fb_switch_rot, 'Input 0', FBVector3d(0, 0, 0))
+    SetInputValue(fb_switch_rot, 'Input 1', FBVector3d(0, 0, 0))
+    SetInputValue(fb_switch_rot, 'Input 2', FBVector3d(0, 0, 0))
+    ConnectNodes(srcBoxRigHips, 'Rotation', fb_switch_rot, 'Input 3') # Hips XZ mode
+    ConnectNodes(srcBoxRigCtrl, 'Rotation', fb_switch_rot, 'Input 4') # Reference XZ mode
+    ConnectNodes(srcBoxRigCtrl, 'Rotation', fb_switch_rot, 'Input 5') # Reference XYZ
+    ConnectNodes(srcBoxCtrlMarker, 'Rotation', fb_switch_rot, 'Input 6') # Marker XYZ
 
     # Final controlled objects
     dstBoxRootBone = CreateDstBox(RC_Root, FBFindModelByLabelName('Root'), True, 2200, 0)
-    ConnectNodes(funcBox_IF_ZeroMode, 'Result', dstBoxRootBone, 'Translation')
-    ConnectNodes(funcBox_IF_UseCustomRotation, 'Result', dstBoxRootBone, 'Rotation')
+    ConnectNodes(fb_switch_trs, 'Result', dstBoxRootBone, 'Translation')
+    ConnectNodes(fb_switch_rot, 'Result', dstBoxRootBone, 'Rotation')
 
     dstBoxRootCtrlArrow = CreateDstBox(RC_Root, oRootCtrlArrow, True, 2200, 150)
-    ConnectNodes(funcBox_IF_ZeroMode, 'Result', dstBoxRootCtrlArrow, 'Translation')
-    ConnectNodes(funcBox_IF_UseCustomRotation, 'Result', dstBoxRootCtrlArrow, 'Rotation')
+    ConnectNodes(fb_switch_trs, 'Result', dstBoxRootCtrlArrow, 'Translation')
+    ConnectNodes(fb_switch_rot, 'Result', dstBoxRootCtrlArrow, 'Rotation')
+
+    # Make marker follow root when not in 'Marker XYZ' mode
+    # funcBox_IF_MarkerNotFollowRootTrs = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1500, 650, 'If marker NOT follow root (Trs)')
+    # ConnectNodes(srcBoxCtrlMarker, 'Translation', funcBox_IF_MarkerNotFollowRootTrs, 'a') #use original marker translation
+    # ConnectNodes(funcBox_IF_ZeroMode, 'Result', funcBox_IF_MarkerNotFollowRootTrs, 'b')
+    # ConnectNodes(funcBoxIsFreeMode, 'Result', funcBox_IF_MarkerNotFollowRootTrs, 'Cond')
+
+    # funcBox_IF_MarkerNotFollowRootRot = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1500, 750, 'If marker NOT follow root (Rot)')
+    # ConnectNodes(srcBoxCtrlMarker, 'Rotation', funcBox_IF_MarkerNotFollowRootRot, 'a') #use original marker rotation
+    # ConnectNodes(srcBoxRigCtrl, 'Rotation', funcBox_IF_MarkerNotFollowRootRot, 'b')
+
+    dstBoxCtrlMarker = CreateDstBox(RC_Root, oRootCtrlMarker, True, 2200, 300)
+    ConnectNodes(fb_switch_trs, 'Result', dstBoxCtrlMarker, 'Translation')
+    ConnectNodes(fb_switch_rot, 'Result', dstBoxCtrlMarker, 'Rotation')
+    ConnectNodes(fb_switch_trs, 'Is mode 6', dstBoxCtrlMarker, 'Visibility')# marker should be visible only in "Free" mode
 
     # Arrow constrained to root bone for visual reference
-    srcBoxRootBone = CreateSrcBox(RC_Root, FBFindModelByLabelName('Root'), True, 1500, 900)
-    dstBoxRootArrow = CreateDstBox(RC_Root, oRootArrow, True, 1800, 900)
+    srcBoxRootBone = CreateSrcBox(RC_Root, FBFindModelByLabelName('Root'), True, 2000, 550)
+    dstBoxRootArrow = CreateDstBox(RC_Root, oRootArrow, True, 2300, 550)
 
     ConnectNodes(srcBoxRootBone, 'Rotation', dstBoxRootArrow, 'Rotation')
     ConnectNodes(srcBoxRootBone, 'Translation', dstBoxRootArrow, 'Translation')
 
     RC_Root.Active = True
     return RC_Root
+
+def CreateMacroSwitchRelationConstraint():
+    constraint = CreateRelaionConstraint('MACRO_RC_SWITCH')
+
+    OUTPUTS_NUM = 7
+
+    fb_IN_Mode = CreateFuncBox(constraint, 'Macro Tools', 'Macro Input Number', 10, 10, 'Index')
+    FindAnimationNode(fb_IN_Mode.AnimationNodeOutGet(), 'Input').Label = 'Index'
+
+    trsInputs = []
+
+    for i in range(OUTPUTS_NUM):
+        fb_IN_trs = CreateFuncBox(constraint, 'Macro Tools', 'Macro Input Vector', 800, 10 + (i*100), 'Input {}'.format(i))
+        FindAnimationNode(fb_IN_trs.AnimationNodeOutGet(), 'Input').Label = 'Input {}'.format(i)
+        trsInputs.append(fb_IN_trs)
+        fb_IN_trs = None
+
+    fb_OUT_Trs = CreateFuncBox(constraint, 'Macro Tools', 'Macro Output Vector', 1300, 10, 'Result')
+    FindAnimationNode(fb_OUT_Trs.AnimationNodeInGet(), 'Output').Label = 'Result'
+
+    prev_IfTrsBox = None
+
+    for i in range(OUTPUTS_NUM):
+
+        fb_IsMode = CreateFuncBox(constraint, 'Number', 'Is Identical (a == b)', 300, 10 + (i*100), 'Is {}'.format(i))
+        ConnectNodes(fb_IN_Mode, 'Input', fb_IsMode, 'a')
+        SetInputValue(fb_IsMode, 'b', i)
+
+        fb_OUT_Mode = CreateFuncBox(constraint, 'Macro Tools', 'Macro Output Bool', 600, 10 + (i*100), 'Out Mode {}'.format(i))
+        FindAnimationNode(fb_OUT_Mode.AnimationNodeInGet(), 'Output').Label = 'Is mode {}'.format(i)
+        ConnectNodes(fb_IsMode, 'Result', fb_OUT_Mode, 'Output')
+
+        if i < OUTPUTS_NUM-1: # Dont create last 'IF' node
+            fb_IF_Trs = CreateFuncBox(constraint, 'Vector', 'IF Cond Then A Else B', 1000, 10 + (i*100), 'If {} Vector'.format(i))
+            ConnectNodes(fb_IsMode, 'Result', fb_IF_Trs, 'Cond')
+
+        if i < OUTPUTS_NUM-1:
+            ConnectNodes(trsInputs[i], 'Input', fb_IF_Trs, 'a')
+        else: #connect to previous 'b' input
+            ConnectNodes(trsInputs[i], 'Input', prev_IfTrsBox, 'b')
+
+
+        if not prev_IfTrsBox: #Connct to main output
+            ConnectNodes(fb_IF_Trs, 'Result', fb_OUT_Trs, 'Output')
+        elif i < OUTPUTS_NUM-1: # Conncet to previous box 'b' input
+            ConnectNodes(fb_IF_Trs, 'Result', prev_IfTrsBox, 'b')
+
+        prev_IfTrsBox = fb_IF_Trs
+
+
+    return constraint
 
 def CreateIKBonesRelaionConstraint():
     constraint = CreateRelaionConstraint('RC_IKBones')
@@ -381,6 +439,14 @@ def MakeSkinnedMeshesUnpickable():
         if topLevelModel.IsDeformable:
             topLevelModel.Pickable = False
 
+def SetModelRotationToOnlyVertical(pModel):
+    pModel.QuaternionInterpolate = True
+    pModel.RotationActive = True
+    pModel.RotationMinX = True
+    pModel.RotationMaxX = True
+    pModel.RotationMinZ = True
+    pModel.RotationMaxZ = True
+    pModel.RotationOrder = FBModelRotationOrder.kFBSphericXYZ
 
 def CreateCustomRigSetup():
     MakeSkinnedMeshesUnpickable()
@@ -390,26 +456,27 @@ def CreateCustomRigSetup():
     rigCtrlModel = FBApplication().CurrentCharacter.GetCtrlRigModel(FBBodyNodeId.kFBReferenceNodeId)
     hipsCtrlModel = FBApplication().CurrentCharacter.GetCtrlRigModel(FBBodyNodeId.kFBHipsNodeId)
 
-    AddEnumProperty(rigCtrlModel, 'Root Mode', True, ['Zero', 'Hips XZ', 'Reference XZ', 'Reference XYZ', 'Marker XYZ'])
-    AddBoolProperty(rigCtrlModel, 'Root use forward', True, bDefaultValue=True)
-    AddBoolProperty(rigCtrlModel, 'Root use side', True, bDefaultValue=False)
+    AddEnumProperty(rigCtrlModel, 'Root Mode', True, ['Zero', 'Hips Z', 'Hips X', 'Hips XZ', 'Reference XZ', 'Reference XYZ', 'Marker XYZ'])
+    AddBoolProperty(rigCtrlModel, 'Apply hips offset', True, bDefaultValue=True)
 
     oRootArrow = CreateCircleWithArrow('RootArrow', 50)
+    # Set rotation limits to SKELETON BONE itself, not to 'RootArrow'!!! It will be constrained to bone anyway
+    SetModelRotationToOnlyVertical(FBFindModelByLabelName('Root'))
     oRootArrow.Pickable = False
     oRootCtrlArrow = CreateCompass('RootCtrlArrow', 60)
+    SetModelRotationToOnlyVertical(oRootCtrlArrow)
     oRootCtrlArrow.Pickable = False
 
     oRootCtrlMarker = CreateControlMarker('RootCtrlMarker', 10000.0)
+    SetModelRotationToOnlyVertical(oRootCtrlMarker)
     # Enable rotation DOF
-    oRootCtrlMarker.RotationActive = True
-    oRootCtrlMarker.RotationMinX = True
-    oRootCtrlMarker.RotationMaxX = True
-    oRootCtrlMarker.RotationMinZ = True
-    oRootCtrlMarker.RotationMaxZ = True
-    oRootCtrlMarker.RotationOrder = FBModelRotationOrder.kFBSphericXYZ
+
 
     oRootCtrlMarker.PropertyList.Find('Visibility').SetAnimated(True) # For relation constraint, marker visible when 'Root Mode' == 'Marker'
 
+    DeleteConstraintByName('RC_Root') # HACK to prevent dialog popup about deleting used macro relation constraint
+
+    CreateMacroSwitchRelationConstraint()
     RC_Root = CreateRootRelaionConstraint(rigCtrlModel, oRootCtrlMarker, hipsCtrlModel, oRootCtrlArrow, oRootArrow) # pylint: disable=unused-variable
     RC_IKBones = CreateIKBonesRelaionConstraint() # pylint: disable=unused-variable
 
