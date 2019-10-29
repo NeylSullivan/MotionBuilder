@@ -10,8 +10,8 @@ reload(libHazardMoBuFunctions)
 enbBlendPercent = FBEditNumber()
 radbtnKeepTime = FBButton()
 radbtnKeepSpeed = FBButton()
-
 enbRescaleTime = FBEditNumber()
+chbxDisableCnstrWhenPlot = FBButton()
 
 
 
@@ -115,8 +115,25 @@ def BtnCallback_RetimeAnim(_control, _event):
     FBStory().Mute = False
 
 def BtnCallback_PlotStory(_control, _event):
+    constraintsList = []
+    if chbxDisableCnstrWhenPlot.State:
+        for node in FBSystem().Scene.Constraints:
+            if node.Name.startswith('MACRO_'):
+                continue
+            elif node.Active and isinstance(node, FBConstraintRelation):
+                constraintsList.append(node)
+
+    for node in constraintsList:
+        print 'Disabling ' + node.Name
+        node.Active = False
+
+
     PlotStoryClip()
     FBStory().Mute = True
+
+    for node in constraintsList:
+        print 'Enabling ' + node.Name
+        node.Active = True
 
 def CreateMirrorSetup():
     CleanStoryTrack()
@@ -345,13 +362,20 @@ def PopulateLayout(mainLyt):
     b.SetStateColor(FBButtonState.kFBButtonState1, FBColor(0.0, 1.0, 0.0))
     main.Add(b, 40, space=15)
 
+    chbxDisableCnstrWhenPlot.Caption = "Disable constraint during plotting"
+    chbxDisableCnstrWhenPlot.Hint = "Disable enable not MACRO relation constraints during plotting to prevent animation glitches"
+    chbxDisableCnstrWhenPlot.Style = FBButtonStyle.kFBCheckbox
+    chbxDisableCnstrWhenPlot.Justify = FBTextJustify.kFBTextJustifyLeft
+    chbxDisableCnstrWhenPlot.State = True
+    main.Add(chbxDisableCnstrWhenPlot, 40)
+
 
 
 def CreateTool():
     # Tool creation will serve as the hub for all other controls
     t = FBCreateUniqueTool("Process Anim Tool")
     t.StartSizeX = 210
-    t.StartSizeY = 450
+    t.StartSizeY = 500
     PopulateLayout(t)
     ShowTool(t)
 

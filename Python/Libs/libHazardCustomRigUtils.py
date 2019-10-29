@@ -241,58 +241,64 @@ def CreateFuncBox(relationConstraint, pGroup, pName, posX, posY, newBoxName=None
 def CreateRootRelaionConstraint(rigCtrlModel, oRootCtrlMarker, hipsCtrlModel, oRootCtrlArrow, oRootArrow):# Relation constraint for root motion
     RC_Root = CreateRelaionConstraint('RC_Root')
 
-    srcBoxRigCtrl = CreateSrcBox(RC_Root, rigCtrlModel, True, 0, 200)
-    srcBoxCtrlMarker = CreateSrcBox(RC_Root, oRootCtrlMarker, True, 1100, 400)
-    srcBoxRigHips = CreateSrcBox(RC_Root, hipsCtrlModel, True, 0-1200, 900-300)
+    srcBoxRigCtrl = CreateSrcBox(RC_Root, rigCtrlModel, True, 100, 200)
+    srcBoxCtrlMarker = CreateSrcBox(RC_Root, oRootCtrlMarker, True, 2400, 400)
+    srcBoxRigHips = CreateSrcBox(RC_Root, hipsCtrlModel, True, 100, 600)
 
     # Process reference pos
-    funcBoxSplitReferencePos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 350, 50, 'Split reference pos')
+    funcBoxSplitReferencePos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 1650, 50, 'Split reference pos')
     ConnectNodes(srcBoxRigCtrl, 'Translation', funcBoxSplitReferencePos, 'V')
 
-    funcBoxCombineReferenceGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 650, 50, 'Reference XZ pos')
+    funcBoxCombineReferenceGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 1950, 50, 'Reference XZ pos')
     ConnectNodes(funcBoxSplitReferencePos, 'X', funcBoxCombineReferenceGroundedPos, 'X')
     SetInputValue(funcBoxCombineReferenceGroundedPos, 'Y', 0.0)
     ConnectNodes(funcBoxSplitReferencePos, 'Z', funcBoxCombineReferenceGroundedPos, 'Z')
 
     # Process hips pos
 
-    funcBoxSplitHipsPos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 300-1200, 900-300, 'Split hips pos')
+    funcBoxSplitHipsPos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 400, 700, 'Split hips pos')
     ConnectNodes(srcBoxRigHips, 'Translation', funcBoxSplitHipsPos, 'V')
 
-    funcBoxCombineHipsGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 600-1200, 900-300, 'Hips XZ Pos') ####
+    funcBoxCombineHipsGroundedPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 700, 700, 'Hips XZ Pos') ####
     ConnectNodes(funcBoxSplitHipsPos, 'X', funcBoxCombineHipsGroundedPos, 'X')
     SetInputValue(funcBoxCombineHipsGroundedPos, 'Y', 0.0)
     ConnectNodes(funcBoxSplitHipsPos, 'Z', funcBoxCombineHipsGroundedPos, 'Z')
 
     #Add root ofset calculation from zero frame
 
-    funcBoxLocalTime = CreateFuncBox(RC_Root, 'System', 'Local Time', 400-1200, 730-300)
+    funcBoxLocalTime = CreateFuncBox(RC_Root, 'System', 'Local Time', 500, 430)
 
-    funcBoxSecondsToTime = CreateFuncBox(RC_Root, 'Converters', 'Seconds to Time', 636-350-1200, 782-300)
+    funcBoxSecondsToTime = CreateFuncBox(RC_Root, 'Converters', 'Seconds to Time', 386, 482)
     SetInputValue(funcBoxSecondsToTime, 'Seconds', 0.0)
 
-    funcBoxIsZeroFrame = CreateFuncBox(RC_Root, 'Time', 'Is Identical (T1 == T2)', 930-350-1200, 760-300, 'Is zero frame')
+    funcBoxIsZeroFrame = CreateFuncBox(RC_Root, 'Time', 'Is Identical (T1 == T2)', 680, 460, 'Is zero frame')
     ConnectNodes(funcBoxLocalTime, 'Result', funcBoxIsZeroFrame, 'T1')
     ConnectNodes(funcBoxSecondsToTime, 'Result', funcBoxIsZeroFrame, 'T2')
 
-    funcBoxMemoryHipsOffset = CreateFuncBox(RC_Root, 'Vector', 'Memory (V1 when REC)', 1250-350-1200, 1000-300, 'Memory hips offset')
+    funcBoxMemoryHipsOffset = CreateFuncBox(RC_Root, 'Vector', 'Memory (V1 when REC)', 1000, 700, 'Memory hips offset')
     ConnectNodes(funcBoxIsZeroFrame, 'Result', funcBoxMemoryHipsOffset, 'REC')
     ConnectNodes(funcBoxCombineHipsGroundedPos, 'Result', funcBoxMemoryHipsOffset, 'V1')
 
-    funcBoxSubtractHipsOffset = CreateFuncBox(RC_Root, 'Vector', 'Subtract (V1 - V2)', 1500-350-1200, 900-300)
+    fb_applyHipsOffset = CreateFuncBox(RC_Root, 'Vector', 'IF Cond Then A Else B', 1300, 800, 'If apply hips offset')
+    ConnectNodes(funcBoxMemoryHipsOffset, 'Result', fb_applyHipsOffset, 'a')
+    SetInputValue(fb_applyHipsOffset, 'b', FBVector3d(0, 0, 0))
+    ConnectNodes(srcBoxRigCtrl, 'Apply hips offset', fb_applyHipsOffset, 'Cond')
+
+
+    funcBoxSubtractHipsOffset = CreateFuncBox(RC_Root, 'Vector', 'Subtract (V1 - V2)', 1250, 600)
     ConnectNodes(funcBoxCombineHipsGroundedPos, 'Result', funcBoxSubtractHipsOffset, 'V1')
-    ConnectNodes(funcBoxMemoryHipsOffset, 'Result', funcBoxSubtractHipsOffset, 'V2')
+    ConnectNodes(fb_applyHipsOffset, 'Result', funcBoxSubtractHipsOffset, 'V2')
 
 
-    fb_SplitHipsXZPos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 1450-1200, 900-300, 'Split hips XZ pos')
+    fb_SplitHipsXZPos = CreateFuncBox(RC_Root, 'Converters', 'Vector to Number', 1550, 600, 'Split hips XZ pos')
     ConnectNodes(funcBoxSubtractHipsOffset, 'Result', fb_SplitHipsXZPos, 'V')
 
-    fb_CombineHipXPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 750, 350, 'Hips X Pos') ####
+    fb_CombineHipXPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 2050, 700, 'Hips X Pos') ####
     ConnectNodes(fb_SplitHipsXZPos, 'X', fb_CombineHipXPos, 'X')
     SetInputValue(fb_CombineHipXPos, 'Y', 0.0)
     SetInputValue(fb_CombineHipXPos, 'Z', 0.0)
 
-    fb_CombineHipZPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 750, 250, 'Hips Z Pos') ####
+    fb_CombineHipZPos = CreateFuncBox(RC_Root, 'Converters', 'Number to Vector', 2050, 600, 'Hips Z Pos') ####
     SetInputValue(fb_CombineHipZPos, 'X', 0.0)
     SetInputValue(fb_CombineHipZPos, 'Y', 0.0)
     ConnectNodes(fb_SplitHipsXZPos, 'Z', fb_CombineHipZPos, 'Z')
@@ -302,7 +308,18 @@ def CreateRootRelaionConstraint(rigCtrlModel, oRootCtrlMarker, hipsCtrlModel, oR
     #######
     #######
     #######
-    fb_switch_trs = CreateFuncBox(RC_Root, 'My Macros', 'MACRO_RC_SWITCH', 1500, 200, 'Switch Trs')
+    fb_switch_rot = CreateFuncBox(RC_Root, 'My Macros', 'MACRO_RC_SWITCH', 2800, 200, 'Switch Rot')
+    ConnectNodes(srcBoxRigCtrl, 'Root Mode', fb_switch_rot, 'Index')
+    SetInputValue(fb_switch_rot, 'Input 0', FBVector3d(0, 0, 0))
+    SetInputValue(fb_switch_rot, 'Input 1', FBVector3d(0, 0, 0))
+    SetInputValue(fb_switch_rot, 'Input 2', FBVector3d(0, 0, 0))
+    ConnectNodes(srcBoxRigHips, 'Rotation', fb_switch_rot, 'Input 3') # Hips XZ mode
+    ConnectNodes(srcBoxRigCtrl, 'Rotation', fb_switch_rot, 'Input 4') # Reference XZ mode
+    ConnectNodes(srcBoxRigCtrl, 'Rotation', fb_switch_rot, 'Input 5') # Reference XYZ
+    ConnectNodes(srcBoxCtrlMarker, 'Rotation', fb_switch_rot, 'Input 6') # Marker XYZ
+
+
+    fb_switch_trs = CreateFuncBox(RC_Root, 'My Macros', 'MACRO_RC_SWITCH', 2800, 500, 'Switch Trs')
     ConnectNodes(srcBoxRigCtrl, 'Root Mode', fb_switch_trs, 'Index')
 
     SetInputValue(fb_switch_trs, 'Input 0', FBVector3d(0, 0, 0)) # Zero mode
@@ -313,22 +330,14 @@ def CreateRootRelaionConstraint(rigCtrlModel, oRootCtrlMarker, hipsCtrlModel, oR
     ConnectNodes(srcBoxRigCtrl, 'Translation', fb_switch_trs, 'Input 5') # Reference XYZ
     ConnectNodes(srcBoxCtrlMarker, 'Translation', fb_switch_trs, 'Input 6') # Marker XYZ
 
-    fb_switch_rot = CreateFuncBox(RC_Root, 'My Macros', 'MACRO_RC_SWITCH', 1500, 500, 'Switch Rot')
-    ConnectNodes(srcBoxRigCtrl, 'Root Mode', fb_switch_rot, 'Index')
-    SetInputValue(fb_switch_rot, 'Input 0', FBVector3d(0, 0, 0))
-    SetInputValue(fb_switch_rot, 'Input 1', FBVector3d(0, 0, 0))
-    SetInputValue(fb_switch_rot, 'Input 2', FBVector3d(0, 0, 0))
-    ConnectNodes(srcBoxRigHips, 'Rotation', fb_switch_rot, 'Input 3') # Hips XZ mode
-    ConnectNodes(srcBoxRigCtrl, 'Rotation', fb_switch_rot, 'Input 4') # Reference XZ mode
-    ConnectNodes(srcBoxRigCtrl, 'Rotation', fb_switch_rot, 'Input 5') # Reference XYZ
-    ConnectNodes(srcBoxCtrlMarker, 'Rotation', fb_switch_rot, 'Input 6') # Marker XYZ
+
 
     # Final controlled objects
-    dstBoxRootBone = CreateDstBox(RC_Root, FBFindModelByLabelName('Root'), True, 2200, 0)
+    dstBoxRootBone = CreateDstBox(RC_Root, FBFindModelByLabelName('Root'), True, 3500, 0)
     ConnectNodes(fb_switch_trs, 'Result', dstBoxRootBone, 'Translation')
     ConnectNodes(fb_switch_rot, 'Result', dstBoxRootBone, 'Rotation')
 
-    dstBoxRootCtrlArrow = CreateDstBox(RC_Root, oRootCtrlArrow, True, 2200, 150)
+    dstBoxRootCtrlArrow = CreateDstBox(RC_Root, oRootCtrlArrow, True, 3500, 150)
     ConnectNodes(fb_switch_trs, 'Result', dstBoxRootCtrlArrow, 'Translation')
     ConnectNodes(fb_switch_rot, 'Result', dstBoxRootCtrlArrow, 'Rotation')
 
@@ -342,14 +351,15 @@ def CreateRootRelaionConstraint(rigCtrlModel, oRootCtrlMarker, hipsCtrlModel, oR
     # ConnectNodes(srcBoxCtrlMarker, 'Rotation', funcBox_IF_MarkerNotFollowRootRot, 'a') #use original marker rotation
     # ConnectNodes(srcBoxRigCtrl, 'Rotation', funcBox_IF_MarkerNotFollowRootRot, 'b')
 
-    dstBoxCtrlMarker = CreateDstBox(RC_Root, oRootCtrlMarker, True, 2200, 300)
+    dstBoxCtrlMarker = CreateDstBox(RC_Root, oRootCtrlMarker, True, 3500, 300)
+    # Translation and roation of marker will not be directly visible in viewport, but can be plotted to marker
     ConnectNodes(fb_switch_trs, 'Result', dstBoxCtrlMarker, 'Translation')
     ConnectNodes(fb_switch_rot, 'Result', dstBoxCtrlMarker, 'Rotation')
     ConnectNodes(fb_switch_trs, 'Is mode 6', dstBoxCtrlMarker, 'Visibility')# marker should be visible only in "Free" mode
 
     # Arrow constrained to root bone for visual reference
-    srcBoxRootBone = CreateSrcBox(RC_Root, FBFindModelByLabelName('Root'), True, 2000, 550)
-    dstBoxRootArrow = CreateDstBox(RC_Root, oRootArrow, True, 2300, 550)
+    srcBoxRootBone = CreateSrcBox(RC_Root, FBFindModelByLabelName('Root'), True, 3300, 550)
+    dstBoxRootArrow = CreateDstBox(RC_Root, oRootArrow, True, 3600, 550)
 
     ConnectNodes(srcBoxRootBone, 'Rotation', dstBoxRootArrow, 'Rotation')
     ConnectNodes(srcBoxRootBone, 'Translation', dstBoxRootArrow, 'Translation')
