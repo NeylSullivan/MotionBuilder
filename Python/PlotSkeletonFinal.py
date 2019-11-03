@@ -74,12 +74,6 @@ def BtnCallback_ResetCameraIKBoneRotation(_control, _event):
 
 
 
-
-
-
-
-
-
 class PlotSkeletonFinal(FBTool):
     def BtnCallback_PlotToSkeleton(self, _control, _event):
 

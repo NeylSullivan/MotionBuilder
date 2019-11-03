@@ -54,8 +54,8 @@ def ProcessData(model):
     lMessage += "*** GUESSED TIME WARPING VALUES ***\n\n"
 
 
-    for i in range(1, 9):
-        guessedSpeed = 100.0 * i
+    for i in xrange(100, 950, 50):
+        guessedSpeed = i
         scaleFactor = velocity / guessedSpeed
         guessedTime = time * scaleFactor
         guessedFrames = int((lEndFrame-lStartFrame) * scaleFactor)

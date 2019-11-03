@@ -27,22 +27,125 @@ def HorBoxLayout(pParentLayout, pHeight=25):
     finally:
         pParentLayout.Add(box, pHeight)
 
+
+def LayoutRadioButtonsGroup(pParentLayout, pSize, pCaptions, pSelectedIndex=0):
+    group = FBButtonGroup()
+
+    for i in range(len(pCaptions)): # pylint: disable=consider-using-enumerate
+        b = FBButton()
+        group.Add(b)
+        b.Caption = pCaptions[i]
+        b.Style = FBButtonStyle.kFBRadioButton
+        if i == pSelectedIndex:
+            b.State = True
+
+        __AddToParentLayout(b, pParentLayout, pSize)
+
+    return group
+
+
+def LayoutEditNumber(pParentLayout, pSize, pValue, **kwarg):
+    enb = FBEditNumber()
+    enb.Value = pValue
+
+    if 'Precision' in kwarg:
+        enb.Precision = kwarg.get('Precision')
+
+    if 'LargeStep' in kwarg:
+        enb.LargeStep = kwarg.get('LargeStep')
+
+    if 'SmallStep' in kwarg:
+        enb.SmallStep = kwarg.get('SmallStep')
+
+    if 'ReadOnly' in kwarg:
+        enb.ReadOnly = kwarg.get('ReadOnly')
+
+    __AddToParentLayout(enb, pParentLayout, pSize)
+    return enb
+
+
+def LayoutLabel(pParentLayout, pSize, pCaption, **kwarg):
+    lbl = FBLabel()
+    lbl.Caption = pCaption
+
+    if 'Visible' in kwarg:
+        lbl.Visible = kwarg.get('Visible')
+
+    if 'ReadOnly' in kwarg:
+        lbl.ReadOnly = kwarg.get('ReadOnly')
+
+    if 'Enabled' in kwarg:
+        lbl.Enabled = kwarg.get('Enabled')
+
+    if 'Hint' in kwarg:
+        lbl.Hint = kwarg.get('Hint')
+
+    if 'Style' in kwarg:
+        lbl.Style = kwarg.get('Style')
+
+    if 'Justify' in kwarg:
+        lbl.Justify = kwarg.get('Justify')
+
+    if 'WordWrap' in kwarg:
+        lbl.WordWrap = kwarg.get('WordWrap')
+
+    __AddToParentLayout(lbl, pParentLayout, pSize)
+    return lbl
+
+def LayoutEmptySpace(pParentLayout, pSize):
+    lbl = FBLabel()
+    lbl.Visible = True
+    lbl.ReadOnly = True
+    lbl.Enabled = False
+    lbl.Hint = None
+    lbl.Caption = None
+    lbl.WordWrap = True
+
+    __AddToParentLayout(lbl, pParentLayout, pSize)
+    return lbl
+
+def LayoutCheckbox(pParentLayout, pSize, pCaption, pState, pCallback=None, **kwarg):
+    chbx = FBButton()
+    chbx.Caption = pCaption
+    chbx.Style = FBButtonStyle.kFBCheckbox
+    chbx.State = pState
+
+    if pCallback:
+        chbx.OnClick.Add(pCallback)
+
+    if 'Hint' in kwarg:
+        chbx.Hint = kwarg.get('Hint')
+
+    if 'Justify' in kwarg:
+        chbx.Justify = kwarg.get('Justify')
+    else:
+        chbx.Justify = FBTextJustify.kFBTextJustifyLeft
+
+
+    __AddToParentLayout(chbx, pParentLayout, pSize)
+    return chbx
+
 def LayoutButton(pParentLayout, pSize, pCaption, pCallback, **kwarg):
     b = FBButton()
     b.Caption = pCaption
-    b.OnClick.Add(pCallback)
+    if pCallback:
+        b.OnClick.Add(pCallback)
 
-    Look = kwarg.get('Look')
-    if Look:
-        b.Look = Look
+    if 'Look' in kwarg:
+        b.Look = kwarg.get('Look')
 
-    State0Color = kwarg.get('State0Color')
-    if State0Color:
-        b.SetStateColor(FBButtonState.kFBButtonState0, State0Color)
+    if 'State0Color' in kwarg:
+        b.SetStateColor(FBButtonState.kFBButtonState0, kwarg.get('State0Color'))
 
-    State1Color = kwarg.get('State1Color')
-    if State1Color:
-        b.SetStateColor(FBButtonState.kFBButtonState1, State1Color)
+    if 'State1Color' in kwarg:
+        b.SetStateColor(FBButtonState.kFBButtonState1, kwarg.get('State1Color'))
 
-    pParentLayout.Add(b, pSize)
+    __AddToParentLayout(b, pParentLayout, pSize)
     return b
+
+def __AddToParentLayout(pWidget, pParentLayout, pSize):
+    if pParentLayout:
+        if isinstance(pSize, float):
+            pParentLayout.AddRelative(pWidget, pSize)
+        else:
+            pParentLayout.Add(pWidget, pSize)
