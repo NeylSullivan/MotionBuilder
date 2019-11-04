@@ -134,10 +134,9 @@ def LayoutButton(pParentLayout, pSize, pCaption, pCallback, **kwarg):
     if 'Look' in kwarg:
         b.Look = kwarg.get('Look')
 
-    if 'State0Color' in kwarg:
+    if ('State0Color' in kwarg) and ('State1Color' in kwarg):
+        b.Look = FBButtonLook.kFBLookColorChange
         b.SetStateColor(FBButtonState.kFBButtonState0, kwarg.get('State0Color'))
-
-    if 'State1Color' in kwarg:
         b.SetStateColor(FBButtonState.kFBButtonState1, kwarg.get('State1Color'))
 
     __AddToParentLayout(b, pParentLayout, pSize)

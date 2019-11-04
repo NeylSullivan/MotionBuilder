@@ -8,6 +8,76 @@ reload(libHazardMoBuFunctions)
 reload(libHazardUIExtension)
 
 class StayOnFloor(FBTool):
+    def AddKey(self, pCurve, pTime, pValue):
+        keyIdx = pCurve.KeyAdd(pTime, pValue)
+        if keyIdx >= 0:
+            pCurve.Keys[keyIdx].TangentMode = FBTangentMode.kFBTangentModeUser
+            pCurve.Keys[keyIdx].LeftDerivative = 0.0
+            pCurve.Keys[keyIdx].RightDerivative = 0.0
+
+
+    def ProcessFCurve(self, pCurve, pReferenceTime, pStartTime, pStopTime, pBlendTime):
+        referenceValue = pCurve.Evaluate(pReferenceTime)
+        distance = pCurve.Evaluate(FBSystem().CurrentTake.LocalTimeSpan.GetStop()) - pCurve.Evaluate(FBSystem().CurrentTake.LocalTimeSpan.GetStart())
+        print 'Curve: {}, keys: {}, referenceValue: {:0.2f}, distance: {:0.2f}'.format(pCurve.LongName, len(pCurve.Keys), referenceValue, distance)
+
+        bPassOverLoop = pStartTime > pStopTime
+
+        startTimeBlend = pStartTime - pBlendTime
+        stopTimeBlend = pStopTime + pBlendTime
+
+        if bPassOverLoop:
+            pCurve.KeyDeleteByTimeRange(startTimeBlend, FBTime.Infinity, True)
+            pCurve.KeyDeleteByTimeRange(FBTime.MinusInfinity, stopTimeBlend, True)
+            startVal = referenceValue
+            if pReferenceTime < pStartTime:
+                startVal = referenceValue + distance
+            self.AddKey(pCurve, FBSystem().CurrentTake.LocalTimeSpan.GetStop(), startVal)
+            self.AddKey(pCurve, pStartTime, startVal)
+
+            stopVal = referenceValue
+            if pReferenceTime > pStopTime:
+                stopVal = referenceValue - distance
+            self.AddKey(pCurve, FBSystem().CurrentTake.LocalTimeSpan.GetStart(), stopVal)
+            self.AddKey(pCurve, pStopTime, stopVal)
+
+        else:
+            pCurve.KeyDeleteByTimeRange(startTimeBlend, stopTimeBlend, True)
+            self.AddKey(pCurve, pStartTime, referenceValue)
+            self.AddKey(pCurve, pStopTime, referenceValue)
+
+    def ProcessModel(self, pModel, pReferenceFrame, pStartFrame, pStopFrame, pBlendFramesNum):
+        referenceTime = FBTime(0, 0, 0, int(pReferenceFrame))
+        startTime = FBTime(0, 0, 0, int(pStartFrame))
+        stopTime = FBTime(0, 0, 0, int(pStopFrame))
+        blendTime = FBTime(0, 0, 0, int(pBlendFramesNum))
+
+        animNode = pModel.Translation.GetAnimationNode()
+        for node in animNode.Nodes:
+            if node.FCurve:
+                self.ProcessFCurve(node.FCurve, referenceTime, startTime, stopTime, blendTime)
+
+    def ButtonActionEvent(self, _control, _event):
+        selectedModel = self.GetSelectedModel()[0]
+        if selectedModel is None:
+            return
+
+        lUndo = FBUndoManager()
+
+        lUndo.TransactionBegin("StayOnFloor")
+        lUndo.TransactionAddModelTRS(selectedModel)
+
+        self.ProcessModel(selectedModel, self.enbReferenceFrame.Value, self.enbStart.Value, self.enbStop.Value, self.enbBlendFrames.Value)
+
+        if self.chbxSymmetry.State:
+            symModel, _symModelName, symStart, symStop, symReferenceFrame = self.GetSymmetryData(selectedModel)
+            if symModel:
+                lUndo.TransactionAddModelTRS(symModel)
+                self.ProcessModel(symModel, symReferenceFrame, symStart, symStop, self.enbBlendFrames.Value)
+
+        lUndo.TransactionEnd()
+
+
     def OnLayoutUpdate(self, _control, _event):
         self.UpdateUI()
 
@@ -26,12 +96,8 @@ class StayOnFloor(FBTool):
         return selectedModel, selectedCount
 
     def UpdateUI(self):
-
-        self.enbStart.Min = FBSystem().CurrentTake.LocalTimeSpan.GetStart().GetFrame()
-        self.enbStart.Max = FBSystem().CurrentTake.LocalTimeSpan.GetStop().GetFrame()-1
-
-        self.enbStop.Min = FBSystem().CurrentTake.LocalTimeSpan.GetStart().GetFrame()+1
-        self.enbStop.Max = FBSystem().CurrentTake.LocalTimeSpan.GetStop().GetFrame()
+        self.enbStart.Min = self.enbStop.Min = FBSystem().CurrentTake.LocalTimeSpan.GetStart().GetFrame()
+        self.enbStart.Max = self.enbStop.Max = FBSystem().CurrentTake.LocalTimeSpan.GetStop().GetFrame()
 
         selectedModel, selectedCount = self.GetSelectedModel()
 
@@ -48,33 +114,59 @@ class StayOnFloor(FBTool):
         bIsAverageMode = self.rbgReferenceMode.buttons[0].State
 
         if bIsAverageMode:
-            self.enbFrame.Value = self.enbStart.Value + int((self.enbStop.Value - self.enbStart.Value) * 0.5)
+            lTakeLength = GetTimeSpan()
+            lFrameDistance = (self.enbStop.Value - self.enbStart.Value)
+            if lFrameDistance < 0:
+                lFrameDistance += lTakeLength
+            self.enbReferenceFrame.Value = (self.enbStart.Value + int(lFrameDistance * 0.5)) % lTakeLength
         else:
-            self.enbFrame.Value = FBSystem().LocalTime.GetFrame()
+            self.enbReferenceFrame.Value = FBSystem().LocalTime.GetFrame()
 
-        _symModel, symModelName, symStart, symStop, symFrame = self.GetSymmetryData(selectedModel)
 
+        self.btnAction.Enabled = selectedModel is not None
+
+        _symModel, symModelName, symStart, symStop, symReferenceFrame = self.GetSymmetryData(selectedModel)
 
         self.lblSymModelName.Caption = symModelName
         self.enbSymStart.Value = symStart
         self.enbSymStop.Value = symStop
-        self.enbSymFrame.Value = symFrame
+        self.enbSymReferenceFrame.Value = symReferenceFrame
 
         # Do it on end to optimize finding symmetry model
         self.lastSelectedModel = selectedModel
 
+    def TryFindSymmetricalModel(self, pModel):
+        if pModel is None:
+            return None
+
+        name = pModel.Name
+        namespace = pModel.LongName.split(':')[:-1]
+        symName = None
+        if 'Left' in name:
+            symName = name.replace('Left', 'Right')
+        elif 'Right' in name:
+            symName = name.replace('Right', 'Left')
+
+        if symName is not None:
+            if namespace:
+                symName = "{}:{}".format(':'.join(namespace), symName)
+            symModel = FBFindModelByLabelName(symName)
+
+            if symModel:
+                return symModel
+        return None
 
 
     def GetSymmetryData(self, pSelectedModel):
         symModel = None
         symModelName = ''
-        symStart, symStop, symFrame = 0, 0, 0
+        symStart, symStop, symReferenceFrame = 0, 0, 0
 
         if not self.chbxSymmetry.State:
-            return symModel, symModelName, symStart, symStop, symFrame
+            return symModel, symModelName, symStart, symStop, symReferenceFrame
 
         if pSelectedModel:
-            symModel = pSelectedModel
+            symModel = self.TryFindSymmetricalModel(pSelectedModel)
 
         if symModel:
             symModelName = symModel.Name
@@ -83,15 +175,15 @@ class StayOnFloor(FBTool):
         if not bLoopOffset:
             symStart = self.enbStart.Value
             symStop = self.enbStop.Value
-            symFrame = self.enbFrame.Value
+            symReferenceFrame = self.enbReferenceFrame.Value
         else:
             takeLength = GetTimeSpan()
             takeHalfLength = takeLength / 2
             symStart = (self.enbStart.Value + takeHalfLength) % takeLength
             symStop = (self.enbStop.Value + takeHalfLength) % takeLength
-            symFrame = (self.enbFrame.Value + takeHalfLength) % takeLength
+            symReferenceFrame = (self.enbReferenceFrame.Value + takeHalfLength) % takeLength
 
-        return symModel, symModelName, symStart, symStop, symFrame
+        return symModel, symModelName, symStart, symStop, symReferenceFrame
 
 
     def ButtonStartEvent(self, _control, _event):
@@ -131,7 +223,9 @@ class StayOnFloor(FBTool):
 
             with HorBoxLayout(vert, 20) as horBox:
                 LayoutLabel(horBox, 60, 'Blend Time')
-                self.enbBlendTime = LayoutEditNumber(horBox, 1.0, 3, Precision=0.0, LargeStep=1.0, SmallStep=1.0)
+                self.enbBlendFrames = LayoutEditNumber(horBox, 1.0, 3, Precision=0.0, LargeStep=1.0, SmallStep=1.0)
+                self.enbBlendFrames.Value = max(3, int(GetTimeSpan() * 0.1))
+                self.enbBlendFrames.Min = 1
                 LayoutButton(horBox, 40, 'Guess', None)
 
             LayoutLabel(vert, 20, 'Reference Mode')
@@ -141,10 +235,10 @@ class StayOnFloor(FBTool):
 
             with HorBoxLayout(vert, 20) as horBox:
                 LayoutLabel(horBox, 60, 'Frame')
-                self.enbFrame = LayoutEditNumber(horBox, 1.0, 0.0, ReadOnly=True, Precision=0.0, LargeStep=1.0, SmallStep=1.0)
+                self.enbReferenceFrame = LayoutEditNumber(horBox, 1.0, 0.0, ReadOnly=True, Precision=0.0, LargeStep=1.0, SmallStep=1.0)
                 LayoutEmptySpace(horBox, 40)
 
-            LayoutButton(vert, 40, 'Action', None, Look=FBButtonLook.kFBLookColorChange, State0Color=FBColor(0.5, 0, 0), State1Color=FBColor(0, 1, 0))
+            self.btnAction = LayoutButton(vert, 40, 'Action', self.ButtonActionEvent, State0Color=FBColor(0.5, 0, 0), State1Color=FBColor(0, 1, 0))
 
         self.chbxSymmetry = LayoutCheckbox(self.main, 20, 'Symmetry', True, self.CheckboxSymmetryEvent)
         self.chbxLoopOffset = LayoutCheckbox(self.main, 20, 'Loop offset', True)
@@ -169,7 +263,7 @@ class StayOnFloor(FBTool):
 
             with HorBoxLayout(vert, 20) as horBox:
                 LayoutLabel(horBox, 60, 'Frame')
-                self.enbSymFrame = LayoutEditNumber(horBox, 1.0, 0, Precision=0.0, LargeStep=1.0, SmallStep=1.0, ReadOnly=True,)
+                self.enbSymReferenceFrame = LayoutEditNumber(horBox, 1.0, 0, Precision=0.0, LargeStep=1.0, SmallStep=1.0, ReadOnly=True,)
                 LayoutEmptySpace(horBox, 40)
 
 
